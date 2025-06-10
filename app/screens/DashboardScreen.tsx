@@ -12,15 +12,23 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { useThemeContext } from '../theme/ThemeContext';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types'; // or wherever your types are defined
 
+import AddSupplierModal from '../components/AddSupplierModal';
+import { supabase } from '../../lib/supabase';
+type RawSaleItem = {
+  id: string;
+  quantity: number;
+  total: number;
+  products?: { name: string };
+}
 
-const dummySales = [
-  { id: 1, item: 'Football Jersey', quantity: 3, amount: 150 },
-  { id: 2, item: 'Soccer Ball', quantity: 2, amount: 80 },
-  { id: 3, item: 'Cleats', quantity: 1, amount: 60 },
-];
+ 
 
 export default function DashboardScreen() {
+ 
   const theme = useColorScheme();
   const { theme: appTheme } = useThemeContext();
   const isDark = appTheme === 'dark';
@@ -29,6 +37,8 @@ export default function DashboardScreen() {
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   const styles = getStyles(isDark, isTablet);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+const [showSupplierModal, setShowSupplierModal] = useState(false);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -37,6 +47,37 @@ export default function DashboardScreen() {
       useNativeDriver: true,
     }).start();
   }, []);
+
+  const [recentSales, setRecentSales] = useState<
+  { id: string; product: string; quantity: number; total: number }[]
+>([]);
+
+useEffect(() => {
+  const fetchRecentSales = async () => {
+    const { data, error } = await supabase
+      .from('sale_items')
+      .select('id, quantity, total, products(name)')
+      .order('created_at', { ascending: false })
+      .limit(3);
+
+    if (error) {
+      console.error('Error fetching recent sales:', error.message);
+    } else {
+      
+      setRecentSales(
+        (data as unknown as RawSaleItem[]).map((item  ) => ({
+          id: item.id,
+          product: item.products?.name ?? 'Unknown',
+          quantity: item.quantity,
+          total: item.total,
+        }))
+      );
+    }
+  };
+
+  fetchRecentSales();
+}, []);
+
 
   return (
     
@@ -86,26 +127,30 @@ export default function DashboardScreen() {
   <Text style={styles.sectionTitle}>Quick Actions</Text>
   <View style={styles.quickActionsContainer}>
     {([
-      {
-        label: 'Add Product',
-        icon: 'plus-circle-outline' as const,
-        onPress: () => console.log('Add Product'),
-      },
-      {
-        label: 'Record Sale',
-        icon: 'file-document-outline' as const,
-        onPress: () => console.log('Record Sale'),
-      },
-      {
-        label: 'Add Supplier',
-        icon: 'account-plus-outline' as const,
-        onPress: () => console.log('Add Supplier'),
-      },
-      {
-        label: 'Export Data',
-        icon: 'upload-outline' as const,
-        onPress: () => console.log('Export Data'),
-      },
+     {
+    label: 'Add Product',
+    icon: 'plus-circle-outline' as const,
+    onPress: () => navigation.navigate('Inventory'), // or open AddProductModal
+  },
+  {
+    label: 'Record Sale',
+    icon: 'file-document-outline' as const,
+    onPress: () => navigation.navigate('Sales'),
+  },
+  {
+  label: 'Add Supplier',
+  icon: 'account-plus-outline' as const,
+  onPress: () => setShowSupplierModal(true),
+}
+,
+  {
+    label: 'Export Data',
+    icon: 'upload-outline' as const,
+    onPress: () => {
+      // You can open a modal or call an export function
+      console.log('Exporting...');
+    },
+  },
     ]).map((action, index) => (
       <TouchableOpacity
         key={index}
@@ -140,11 +185,11 @@ export default function DashboardScreen() {
           <Text style={styles.sectionTitle}>Recent Sales</Text>
           <Text style={styles.seeAllText}>See All</Text>
         </View>
-        {dummySales.map(sale => (
+        {recentSales.map(sale => (
           <View key={sale.id} style={styles.saleItem}>
-            <Text style={styles.saleText}>{sale.item}</Text>
+            <Text style={styles.saleText}>{sale.product}</Text>
             <Text style={styles.saleText}>Qty: {sale.quantity}</Text>
-            <Text style={styles.saleText}>${sale.amount}</Text>
+            <Text style={styles.saleText}>${sale.total}</Text>
           </View>
         ))}
       </View>
@@ -201,8 +246,16 @@ export default function DashboardScreen() {
     absolute
   />
 </View>
+<AddSupplierModal
+  visible={showSupplierModal}
+  onClose={() => setShowSupplierModal(false)}
+  onAdd={(supplier) => {
+    console.log('New Supplier:', supplier);
+    // Optional: push to Supabase
+  }}
+/>
 
-
+    
     </Animated.ScrollView>
     
   );
@@ -239,6 +292,8 @@ function MetricCard({ icon, label, value, color }: any) {
       >
         {value}
       </Text>
+      
+
     </View>
   );
 }

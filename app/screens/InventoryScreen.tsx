@@ -1,218 +1,124 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  useColorScheme,
-  StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
-  ActivityIndicator,
+  StyleSheet,
+  useColorScheme,
+  Alert,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useProductContext, Product } from '../context/ProductContext';
 import AddProductModal from '../components/AddProductsModal';
 import EditProductModal from '../components/EditProductModal';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useThemeContext } from '../theme/ThemeContext';
-import { supabase } from '../../lib/supabase';
-
-type Product = {
-  id: string;
-  name: string;
-  type: string;
-  stock?: number;
-};
-
-const initialProducts: Product[] = [
-  { id: '0001', name: 'MacBook Pro', type: 'Laptop', stock: 8 },
-  { id: '0002', name: 'iPhone 14 Pro', type: 'Phone', stock: 2 }, // 🔴 low
-  { id: '0003', name: 'Zoom75', type: 'Keyboard', stock: 10 },
-  { id: '0004', name: 'Airpods Pro', type: 'Earphones' },
-  { id: '0005', name: 'Galaxy Fold', type: 'Phone' },
-  { id: '0006', name: 'Logitech Superlight', type: 'Mouse' },
-];
 
 export default function InventoryScreen() {
-  const [showModal, setShowModal] = useState(false);
-  const [productList, setProductList] = useState<Product[]>(initialProducts);
-  const theme = useColorScheme();
-  const isDark = useThemeContext().theme;
+    const theme = useColorScheme();
+    const { theme: appTheme } = useThemeContext();
+    const isDark = appTheme === 'dark';
+  const { products, addProduct, deleteProduct, fetchProducts } = useProductContext();
 
-  const [selectedProduct, setSelectedProduct] = useState<null | Product>(null);
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const productsPerPage = 5;
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
-      const { data, error } = await supabase.from('products').select('*');
-
-      if (error) {
-        console.error('Failed to fetch products:', error.message);
-      } else if (data) {
-        setProductList(data);
-      }
-
-      setLoading(false);
-    };
-
-    fetchProducts();
-  }, []);
-
-  // Reset to page 1 if productList changes (e.g. new product added)
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [productList]);
-
-  // Pagination logic
-  const totalPages = Math.ceil(productList.length / productsPerPage);
-  const indexOfLastProduct = currentPage * productsPerPage;
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
-  const currentProducts = productList.slice(indexOfFirstProduct, indexOfLastProduct);
-
-  const goToPage = (page: number) => {
-    if (page < 1 || page > totalPages) return;
-    setCurrentPage(page);
+  const stockLevel = (stock: number) => {
+    if (stock < 5) return { label: 'Low', color: '#e53935', fraction: stock / 5 };
+    if (stock < 20) return { label: 'Okay', color: '#fbc02d', fraction: (stock - 5) / 15 };
+    return { label: 'High', color: '#24D164', fraction: 1 };
   };
 
-  if (loading) {
+  const renderStockBar = (stock: number) => {
+    const { label, color, fraction } = stockLevel(stock);
     return (
-      <View
-        style={[
-          styles.screen,
-          { backgroundColor: isDark ? '#121212' : '#f9f9f9', justifyContent: 'center', alignItems: 'center' },
-        ]}
-      >
-        <ActivityIndicator size="large" color={isDark ? '#24D164' : '#24D164'} />
-        <Text style={{ marginTop: 10, color: isDark ? '#fff' : '#000' }}>Loading products...</Text>
+      <View style={styles.stockContainer}>
+        <View style={[styles.stockBarBg, { backgroundColor: isDark ? '#333' : '#ddd' }]}>
+          <View style={[styles.stockBarFill, { backgroundColor: color, flex: fraction }]} />
+        </View>
+        <Text style={[styles.stockLabel, { color: isDark ? '#fff' : '#000' }]}>{label}</Text>
       </View>
     );
-  }
+  };
+
+  const confirmDelete = (prod: Product) => {
+    Alert.alert(
+      'Delete Product',
+      `Are you sure you want to delete "${prod.name}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteProduct(prod.id),
+        },
+      ]
+    );
+  };
+
+  const handleAdd = async (prodData: any) => {
+    await addProduct(prodData);
+    setAdding(false);
+  };
 
   return (
-    <View style={[styles.screen, { backgroundColor: isDark ? '#121212' : '#f9f9f9' }]}>
-      {/* Header Row */}
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: isDark ? '#fff' : '#000' }]}>Inventory</Text>
-        <TouchableOpacity style={styles.addButton} onPress={() => setShowModal(true)}>
-          <MaterialCommunityIcons name="plus-circle-outline" size={18} color="#fff" />
-          <Text style={styles.addButtonText}>Add New Product</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={[styles.container, { backgroundColor: isDark ? '#121212' : '#fff' }]}>
+      <Text style={[styles.title, { color: isDark ? '#fff' : '#000' }]}>Inventory</Text>
 
-      {/* Recent Activity */}
-      <View style={[styles.activityCard, { backgroundColor: isDark ? '#1f1f1f' : '#fff' }]}>
-        <Text style={[styles.activityTitle, { color: isDark ? '#fff' : '#000' }]}>Recent Activity</Text>
-        <View style={styles.activityRow}>
-          <Text style={{ color: 'green' }}>Restocked: 6 Products</Text>
-          <Text style={{ color: 'red' }}>Sold: 2 Products</Text>
-        </View>
-      </View>
-
-      {/* Product List Header */}
-      <View style={[styles.tableHeader, { backgroundColor: isDark ? '#1a1a1a' : '#efefef' }]}>
-        <Text style={[styles.headerCell, { color: isDark ? '#ccc' : '#333' }]}>Name</Text>
-        <Text style={[styles.headerCell, { color: isDark ? '#ccc' : '#333' }]}>Code</Text>
-        <Text style={[styles.headerCell, { color: isDark ? '#ccc' : '#333' }]}>Stock</Text>
-      </View>
-
-      {/* Product List */}
-      <ScrollView style={{ marginBottom: 20 }}>
-        {currentProducts.map((p, idx) => (
-          <View
-            key={p.id}
-            style={[
-              styles.productRow,
-              {
-                backgroundColor:
-                  idx % 2 === 0 ? (isDark ? '#2a2a2a' : '#fff') : (isDark ? '#202020' : '#f7f7f7'),
-              },
-            ]}
-          >
-            <Text style={[styles.cellText, { color: isDark ? '#fff' : '#000' }]}>{p.name}</Text>
-            <Text style={[styles.cellText, { color: isDark ? '#fff' : '#000' }]}>#{p.id.substring(0, 5)}</Text>
-            <Text style={[styles.cellText, { color: isDark ? '#fff' : '#000' }]}>{p.stock ?? 0}</Text>
-
-            {/* Low Stock Badge */}
-            {typeof p.stock === 'number' && p.stock < 5 && (
-              <View style={styles.lowStockBadge}>
-                <Text style={styles.lowStockText}>Low</Text>
-              </View>
-            )}
-
-            {/* Edit Button */}
-            <TouchableOpacity
-              onPress={() => {
-                setSelectedProduct(p);
-                setEditModalVisible(true);
-              }}
-            >
-              <MaterialCommunityIcons name="pencil-outline" size={20} color={isDark ? '#ccc' : '#333'} />
-            </TouchableOpacity>
-          </View>
-        ))}
-      </ScrollView>
-
-      {/* Pagination */}
-      <View style={styles.pagination}>
-        <TouchableOpacity
-          onPress={() => goToPage(currentPage - 1)}
-          disabled={currentPage === 1}
-          style={{ marginHorizontal: 6, opacity: currentPage === 1 ? 0.3 : 1 }}
-        >
-          <Text style={{ color: isDark ? '#ccc' : '#666', fontSize: 18 }}>◄</Text>
-        </TouchableOpacity>
-
-        {[...Array(totalPages)].map((_, idx) => {
-          const pageNum = idx + 1;
-          const isActive = pageNum === currentPage;
-          return (
-            <TouchableOpacity
-              key={pageNum}
-              onPress={() => goToPage(pageNum)}
-              style={{
-                marginHorizontal: 4,
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderRadius: 4,
-                backgroundColor: isActive ? '#24D164' : 'transparent',
-              }}
-            >
-              <Text style={{ color: isActive ? '#fff' : isDark ? '#ccc' : '#666', fontWeight: isActive ? 'bold' : 'normal' }}>
-                {pageNum}
+      <FlatList
+        data={products}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        renderItem={({ item }) => (
+          <View style={[styles.card, { backgroundColor: isDark ? '#1f1f1f' : '#f9f9f9' }]}>
+            <View style={styles.cardHeader}>
+              <Text style={[styles.cardTitle, { color: isDark ? '#fff' : '#000' }]}>
+                {item.name}
               </Text>
-            </TouchableOpacity>
-          );
-        })}
+              <View style={styles.iconRow}>
+                <TouchableOpacity onPress={() => setEditingProduct(item)} style={styles.iconBtn}>
+                  <MaterialCommunityIcons name="pencil-outline" size={20} color={isDark ? '#ccc' : '#333'} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => confirmDelete(item)} style={styles.iconBtn}>
+                  <MaterialCommunityIcons name="delete-outline" size={20} color="#e53935" />
+                </TouchableOpacity>
+              </View>
+            </View>
 
-        <TouchableOpacity
-          onPress={() => goToPage(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          style={{ marginHorizontal: 6, opacity: currentPage === totalPages ? 0.3 : 1 }}
-        >
-          <Text style={{ color: isDark ? '#ccc' : '#666', fontSize: 18 }}>►</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Modals */}
-      <AddProductModal
-        visible={showModal}
-        onClose={() => setShowModal(false)}
-        onAdd={(product) => {
-          console.log('New Product Added:', product);
-          setProductList([...productList, product]);
-        }}
+            <Text style={[styles.cardText, { color: isDark ? '#ccc' : '#333' }]}>
+              Code: {item.code}
+            </Text>
+            <Text style={[styles.cardText, { color: isDark ? '#ccc' : '#333' }]}>
+              Type: {item.type}
+            </Text>
+            <View style={styles.stockRow}>
+              {renderStockBar(item.stock ?? 0)}
+              <Text style={[styles.stockNumber, { color: isDark ? '#fff' : '#000' }]}>
+                {item.stock ?? 0}
+              </Text>
+            </View>
+          </View>
+        )}
       />
-      {selectedProduct && (
+
+      <TouchableOpacity style={styles.addBtn} onPress={() => setAdding(true)}>
+        <MaterialCommunityIcons name="plus" size={24} color="#fff" />
+      </TouchableOpacity>
+
+      <AddProductModal
+        visible={adding}
+        onClose={() => setAdding(false)}
+        onAdd={handleAdd}
+      />
+
+      {editingProduct && (
         <EditProductModal
-          visible={editModalVisible}
-          product={selectedProduct}
-          onClose={() => setEditModalVisible(false)}
-          onSave={(updated) => {
-            const updatedList = productList.map((p) => (p.id === updated.id ? updated : p));
-            setProductList(updatedList);
+          visible={!!editingProduct}
+          product={editingProduct}
+          onClose={() => setEditingProduct(null)}
+          onSave={async () => {
+            await fetchProducts();
+            setEditingProduct(null);
           }}
         />
       )}
@@ -221,81 +127,31 @@ export default function InventoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, padding: 16 },
-  header: {
-    marginTop: 10,
-    marginBottom: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  title: { fontSize: 24, fontWeight: '600' },
-  addButton: {
-    flexDirection: 'row',
+  container: { flex: 1, padding: 16 },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 12 },
+  list: { paddingBottom: 100 },
+  card: { borderRadius: 10, padding: 16, marginBottom: 12, elevation: 2 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  iconRow: { flexDirection: 'row' },
+  iconBtn: { paddingHorizontal: 8 },
+  cardTitle: { fontSize: 18, fontWeight: '600' },
+  cardText: { fontSize: 14, marginTop: 4 },
+  stockRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
+  stockContainer: { flex: 1 },
+  stockBarBg: { height: 8, borderRadius: 4, overflow: 'hidden' },
+  stockBarFill: { height: 8 },
+  stockLabel: { marginTop: 4, fontSize: 12, fontWeight: '600' },
+  stockNumber: { width: 36, textAlign: 'center', marginLeft: 8 },
+  addBtn: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
     backgroundColor: '#24D164',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  activityCard: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-  },
-  activityTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  activityRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginBottom: 8,
-  },
-  headerCell: {
-    flex: 1,
-    fontWeight: '700',
-    fontSize: 14,
-    paddingLeft: 10,
-  },
-  productRow: {
-    flexDirection: 'row',
-    paddingVertical: 14,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-    borderRadius: 10,
-    marginBottom: 6,
-  },
-  cellText: {
-    flex: 1,
-    fontSize: 14,
-  },
-  lowStockBadge: {
-    backgroundColor: '#e02424',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    marginRight: 8,
-  },
-  lowStockText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  pagination: {
-    flexDirection: 'row',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
-    marginBottom: 16,
+    alignItems: 'center',
+    elevation: 4,
   },
 });
