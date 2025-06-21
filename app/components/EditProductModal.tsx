@@ -13,22 +13,23 @@ export default function EditProductModal({
   product: any;
 }) {
   const [name, setName] = useState('');
-  const [code, setCode] = useState('');
-  const [type, setType] = useState('');
+  //const [code, setCode] = useState('');
+  const [unitPrice, setUnitPrice] = useState('');
   const [stock, setStock] = useState('');
-
+  
   useEffect(() => {
     if (product) {
       setName(product.name);
-      setCode(product.code);
-      setType(product.type);
+     // setCode(product.code);
+      setUnitPrice(product.unitPrice);
       setStock(product.stock?.toString() || '');
+       
     }
   }, [product]);
 
   const handleSave = () => {
-    if (!name || !code || !type || !stock) return;
-    onSave({ ...product, name, code, type, stock: parseInt(stock) });
+    if (!name ||   !unitPrice || !stock) return;
+    onSave({ ...product, name , unitPrice, stock: parseInt(stock) });
     onClose();
   };
 
@@ -37,7 +38,7 @@ export default function EditProductModal({
       visible={visible}
       onClose={onClose}
       onAdd={handleSave} // ✅ reuse logic for update
-      initialData={{ name, code, type, stock }}
+      initialData={{ name, unitPrice, stock }}
     />
   );
 }

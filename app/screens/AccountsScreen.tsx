@@ -90,6 +90,13 @@ export default function AccountsScreen() {
       >
         <Text style={{ color: '#fff', fontWeight: 'bold' }}>View All Suppliers</Text>
       </TouchableOpacity>
+      <TouchableOpacity
+  style={[styles.button, { backgroundColor: '#007AFF' }]}
+  onPress={() => navigation.navigate('FactoryTransactions')}
+>
+  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Factory Transactions</Text>
+</TouchableOpacity>
+
 
       <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>Recent Transactions</Text>
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -20,8 +20,7 @@ export default function AddProductModal({
   onAdd: (product: any) => void;
   initialData?: {
     name: string;
-    code: string;
-    type: string;
+    unitPrice: string;
     stock: string;
   };
 }) {
@@ -30,23 +29,36 @@ export default function AddProductModal({
 
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
-  const [type, setType] = useState('');
+  const [unitPrice, setUnitPrice] = useState('');
   const [stock, setStock] = useState('');
 
+  useEffect(() => {
+    if (initialData) {
+      setName(initialData.name || '');
+      setUnitPrice(initialData.unitPrice?.toString() || '');
+      setStock(initialData.stock || '');
+    }
+  }, [initialData]);
+
   const handleSubmit = () => {
-    if (!name || !code || !type || !stock) return;
+    if (!name || !unitPrice || !stock) return;
+
+    const parsedPrice = parseFloat(unitPrice);
+    const parsedStock = parseInt(stock);
+
+    if (isNaN(parsedPrice) || isNaN(parsedStock)) return;
 
     const newProduct = {
       name,
       code,
-      type,
-      stock: parseInt(stock),
+      unitPrice: parsedPrice,
+      stock: parsedStock,
     };
 
     onAdd(newProduct);
+
     setName('');
-    setCode('');
-    setType('');
+    setUnitPrice('');
     setStock('');
     onClose();
   };
@@ -63,24 +75,17 @@ export default function AddProductModal({
             placeholder="Product Name"
             placeholderTextColor={isDark ? '#aaa' : '#555'}
             style={[styles.input, { backgroundColor: isDark ? '#2a2a2a' : '#f0f0f0', color: isDark ? '#fff' : '#000' }]}
-            value={initialData? initialData.name :name}
+            value={name}
             onChangeText={setName}
           />
 
           <TextInput
-            placeholder="Product Code"
+            placeholder="Unit Price"
             placeholderTextColor={isDark ? '#aaa' : '#555'}
             style={[styles.input, { backgroundColor: isDark ? '#2a2a2a' : '#f0f0f0', color: isDark ? '#fff' : '#000' }]}
-            value={initialData?  initialData.code:code}
-            onChangeText={setCode}
-          />
-
-          <TextInput
-            placeholder="Product Type"
-            placeholderTextColor={isDark ? '#aaa' : '#555'}
-            style={[styles.input, { backgroundColor: isDark ? '#2a2a2a' : '#f0f0f0', color: isDark ? '#fff' : '#000' }]}
-            value={initialData?  initialData.type:type}
-            onChangeText={setType}
+            keyboardType="decimal-pad"
+            value={unitPrice}
+            onChangeText={setUnitPrice}
           />
 
           <TextInput
