@@ -10,16 +10,17 @@ import {
   Animated,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LineChart, PieChart } from 'react-native-chart-kit';
+import { LineChart } from 'react-native-chart-kit';
 import { useThemeContext } from '../theme/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { supabase } from '../../lib/supabase';
-import { useFocusEffect } from '@react-navigation/native';
-import { useCallback } from 'react';
+
+// Types
 
 type RawSaleItem = {
   id: string;
@@ -53,153 +54,87 @@ export default function DashboardScreen() {
   const [lowStockCount, setLowStockCount] = useState<number>(0);
   const [salesToday, setSalesToday] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-  Animated.timing(fadeAnim, {
-    toValue: 1,
-    duration: 800,
-    useNativeDriver: true,
-  }).start();
-}, []);
+  const fetchData = async () => {
+    setLoading(true);
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
 
-useFocusEffect(
-  useCallback(() => {
-    loadDashboardData();
-  }, [])
-);
+    const { data, error } = await supabase
+      .from('sale_items')
+      .select('id, quantity, total, created_at, product_id, products(name)')
+      .order('created_at', { ascending: false });
 
-  const loadDashboardData = async () => {
-  setLoading(true);
-  const now = new Date();
-  const today = now.toISOString().split('T')[0];
-
-  const { data, error } = await supabase
-    .from('sale_items')
-    .select('id, quantity, total, created_at, product_id, products(name)')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Fetch error:', error.message);
-    setLoading(false);
-    return;
-  }
-
-  const items = data as unknown as RawSaleItem[];
-
-  const recent = items.slice(0, 3).map(item => ({
-    id: item.id,
-    product: item.products?.name ?? 'Unknown',
-    quantity: item.quantity,
-    total: item.total,
-  }));
-
-  const salesPerWeek = [0, 0, 0, 0];
-  const topMap: Record<string, { name: string; qty: number; revenue: number }> = {};
-  let todayTotal = 0;
-
-  items.forEach(item => {
-    const date = new Date(item.created_at);
-    const week = Math.floor((date.getDate() - 1) / 7);
-    salesPerWeek[week] += item.total;
-
-    if (item.products?.name) {
-      const name = item.products.name;
-      if (!topMap[name]) topMap[name] = { name, qty: 0, revenue: 0 };
-      topMap[name].qty += item.quantity;
-      topMap[name].revenue += item.total;
-    }
-
-    if (item.created_at.startsWith(today)) {
-      todayTotal += item.total;
-    }
-  });
-
-  const topList = Object.values(topMap).sort((a, b) => b.qty - a.qty).slice(0, 3);
-   const fetchStock = async () => {
-      const { data, error } = await supabase.from('products').select('stock');
-      if (!error && data) {
-        const stocks = data as Product[];
-        const total = stocks.reduce((sum, p) => sum + p.stock, 0);
-        const low = stocks.filter(p => p.stock < 5).length;
-        setItemsInStock(total);
-        setLowStockCount(low);
-      }
-    };
-    fetchStock()
-  setRecentSales(recent);
-  setTopProducts(topList);
-  setSalesData(salesPerWeek);
-  setSalesToday(todayTotal);
-  setLoading(false);
-};
-
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const now = new Date();
-      const today = now.toISOString().split('T')[0];
-
-      const { data, error } = await supabase
-        .from('sale_items')
-        .select('id, quantity, total, created_at, product_id, products(name)')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Fetch error:', error.message);
-        setLoading(false);
-        return;
-      }
-
-      const items = data as unknown as RawSaleItem[];
-
-      const recent = items.slice(0, 3).map(item => ({
-        id: item.id,
-        product: item.products?.name ?? 'Unknown',
-        quantity: item.quantity,
-        total: item.total,
-      }));
-
-      const salesPerWeek = [0, 0, 0, 0];
-      const topMap: Record<string, { name: string; qty: number; revenue: number }> = {};
-      let todayTotal = 0;
-
-      items.forEach(item => {
-        const date = new Date(item.created_at);
-        const week = Math.floor((date.getDate() - 1) / 7);
-        salesPerWeek[week] += item.total;
-
-        if (item.products?.name) {
-          const name = item.products.name;
-          if (!topMap[name]) topMap[name] = { name, qty: 0, revenue: 0 };
-          topMap[name].qty += item.quantity;
-          topMap[name].revenue += item.total;
-        }
-
-        if (item.created_at.startsWith(today)) {
-          todayTotal += item.total;
-        }
-      });
-
-      const topList = Object.values(topMap).sort((a, b) => b.qty - a.qty).slice(0, 3);
-
-      setRecentSales(recent);
-      setTopProducts(topList);
-      setSalesData(salesPerWeek);
-      setSalesToday(todayTotal);
+    if (error) {
+      console.error('Fetch error:', error.message);
       setLoading(false);
-    };
+      return;
+    }
 
-    const fetchStock = async () => {
-      const { data, error } = await supabase.from('products').select('stock');
-      if (!error && data) {
-        const stocks = data as Product[];
-        const total = stocks.reduce((sum, p) => sum + p.stock, 0);
-        const low = stocks.filter(p => p.stock < 5).length;
-        setItemsInStock(total);
-        setLowStockCount(low);
+    const items = data as unknown as RawSaleItem[];
+
+    const recent = items.slice(0, 3).map(item => ({
+      id: item.id,
+      product: item.products?.name ?? 'Unknown',
+      quantity: item.quantity,
+      total: item.total,
+    }));
+
+    const salesPerWeek = [0, 0, 0, 0];
+    const topMap: Record<string, { name: string; qty: number; revenue: number }> = {};
+    let todayTotal = 0;
+
+    items.forEach(item => {
+      const date = new Date(item.created_at);
+      const week = Math.floor((date.getDate() - 1) / 7);
+      salesPerWeek[week] += item.total;
+
+      if (item.products?.name) {
+        const name = item.products.name;
+        if (!topMap[name]) topMap[name] = { name, qty: 0, revenue: 0 };
+        topMap[name].qty += item.quantity;
+        topMap[name].revenue += item.total;
       }
-    };
+
+      if (item.created_at.startsWith(today)) {
+        todayTotal += item.total;
+      }
+    });
+
+    const topList = Object.values(topMap).sort((a, b) => b.qty - a.qty).slice(0, 3);
+
+    setRecentSales(recent);
+    setTopProducts(topList);
+    setSalesData(salesPerWeek);
+    setSalesToday(todayTotal);
+    setLoading(false);
+  };
+
+  const fetchStock = async () => {
+    const { data, error } = await supabase.from('products').select('stock');
+    if (!error && data) {
+      const stocks = data as Product[];
+      const total = stocks.reduce((sum, p) => sum + p.stock, 0);
+      const low = stocks.filter(p => p.stock < 5).length;
+      setItemsInStock(total);
+      setLowStockCount(low);
+    }
+  };
+
+  const refreshDashboard = async () => {
+    setRefreshing(true);
+    await fetchData();
+    await fetchStock();
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
 
     fetchData();
     fetchStock();
@@ -215,7 +150,10 @@ useFocusEffect(
   }
 
   return (
-    <Animated.ScrollView style={[styles.container, { opacity: fadeAnim }]}>
+    <Animated.ScrollView
+      style={[styles.container, { opacity: fadeAnim }]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshDashboard} tintColor={isDark ? '#fff' : '#000'} />}
+    >
       <View style={styles.cardRow}>
         <MetricCard icon="soccer" label="Items in Stock" value={itemsInStock} color="green" />
         <MetricCard icon="cash" label="Sales Today" value={`GHS ${salesToday}`} color="blue" />
@@ -227,11 +165,7 @@ useFocusEffect(
         <LineChart
           data={{
             labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-            datasets: [
-              {
-                data: salesData,
-              },
-            ],
+            datasets: [{ data: salesData }],
           }}
           width={width - 40}
           height={220}
@@ -270,32 +204,6 @@ useFocusEffect(
           )}
         </ScrollView>
       </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Sales Breakdown</Text>
-        {topProducts.length === 0 ? (
-          <Text style={{ color: isDark ? '#aaa' : '#555' }}>No data for pie chart.</Text>
-        ) : (
-          <PieChart
-            data={topProducts.map((p, i) => ({
-              name: p.name,
-              sales: p.revenue,
-              color: ['#00C49F', '#FFBB28', '#FF8042'][i % 3],
-              legendFontColor: isDark ? '#fff' : '#000',
-              legendFontSize: 14,
-            }))}
-            width={width - 40}
-            height={220}
-            chartConfig={{
-              color: () => (isDark ? '#fff' : '#000'),
-            }}
-            accessor="sales"
-            backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
-          />
-        )}
-      </View>
     </Animated.ScrollView>
   );
 }
@@ -306,9 +214,7 @@ function MetricCard({ icon, label, value, color }: any) {
   const isDark = (contextTheme ?? systemTheme) === 'dark';
 
   return (
-    <View
-      style={[cardStyles.card, { backgroundColor: isDark ? '#1f1f1f' : '#fff' }]}
-    >
+    <View style={[cardStyles.card, { backgroundColor: isDark ? '#1f1f1f' : '#fff' }]}>
       <MaterialCommunityIcons name={icon} size={24} color={color} />
       <Text style={[cardStyles.cardLabel, { color: isDark ? '#fff' : '#333' }]}>{label}</Text>
       <Text style={[cardStyles.cardValue, { color: isDark ? '#fff' : '#000' }]}>{value}</Text>
