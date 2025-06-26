@@ -23,7 +23,31 @@
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "webpack",
+      "themeColor": "#ffffff",
+      "backgroundColor": "#ffffff",
+      "meta": {
+        "name": "Inventory App",
+        "description": "A mobile-first inventory management app.",
+        "lang": "en",
+        "apple": {
+          "webAppCapable": true,
+          "statusBarStyle": "default"
+        }
+      },
+      "manifest": {
+        "display": "standalone",
+        "start_url": ".",
+        "short_name": "Inventory",
+        "icons": [
+          {
+            "src": "./assets/icon.png",
+            "sizes": "512x512",
+            "type": "image/png"
+          }
+        ]
+      }
     }
   }
 }
