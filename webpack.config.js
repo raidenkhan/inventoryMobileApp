@@ -7,6 +7,7 @@ module.exports = async function (env, argv) {
     ...(config.resolve.fallback || {}),
     crypto: require.resolve('crypto-browserify'),
     stream: require.resolve('stream-browserify'), // ← add this line
+    vm: require.resolve('vm-browserify'),
   };
 
   return config;
