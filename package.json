@@ -29,7 +29,9 @@
     "react-native-toast-message": "^2.3.0",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "^0.20.0",
-    "stream-browserify": "^3.0.0"
+    "stream-browserify": "^3.0.0",
+    "expo-font": "~11.10.3",
+    "expo-modules-core": "~1.11.14"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
