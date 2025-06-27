@@ -2,7 +2,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import Dashboard from '../screens/DashboardScreen';
 import Inventory from '../screens/InventoryScreen';
-import Settings from '../screens/SettingsScreen';
 import SalesScreen from '../screens/SalesScreen';
 import { Ionicons } from '@expo/vector-icons'; // or 'react-native-vector-icons/Ionicons'
 import AccountsStack from './AccountsStack';
