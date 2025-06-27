@@ -5,8 +5,21 @@ import TopBar from './app/components/Topbar';
 import Toast from 'react-native-toast-message';
 import { ProductProvider } from './app/context/ProductContext';
 import InstallPWAButton from './app/components/InstallPWABtn';
+import { useEffect } from 'react';
 
 export default function App() {
+  // Add this to your App.js or main component
+useEffect(() => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then((registration) => {
+        console.log('SW registered: ', registration);
+      })
+      .catch((registrationError) => {
+        console.log('SW registration failed: ', registrationError);
+      });
+  }
+}, []);
   return (
     <ProductProvider>
       <ThemeProvider>

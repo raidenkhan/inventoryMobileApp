@@ -39,14 +39,27 @@
         }
       },
       "manifest": {
-        "display": "standalone",
-        "start_url": ".",
+        "name": "Inventory App",
         "short_name": "Inventory",
+        "description": "A mobile-first inventory management app.",
+        "display": "standalone",
+        "orientation": "portrait",
+        "start_url": "/",
+        "scope": "/",
+        "theme_color": "#ffffff",
+        "background_color": "#ffffff",
         "icons": [
           {
             "src": "./assets/icon.png",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any maskable"
+          },
+          {
+            "src": "./assets/icon.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
           }
         ]
       }

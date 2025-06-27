@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeContext } from '../theme/ThemeContext'; // adjust path
+import InstallPWAButton from './InstallPWABtn';
 
 export default function TopBar() {
   const { theme, toggleTheme } = useThemeContext();
@@ -9,6 +10,7 @@ export default function TopBar() {
 
   return (
     <View style={[styles.topBar, { backgroundColor: isDark ? '#222' : '#f5f5f5' }]}>
+      
       <Text style={[styles.companyName, { color: isDark ? '#fff' : '#000' }]}>InvView</Text>
 
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
