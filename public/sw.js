@@ -2,7 +2,7 @@ const CACHE_NAME = 'inventory-app-v1';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json',
+ 
  ,
 ];
 
